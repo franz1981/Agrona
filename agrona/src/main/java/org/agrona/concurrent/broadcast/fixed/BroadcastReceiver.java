@@ -61,6 +61,33 @@ public final class BroadcastReceiver
      * written on {@link BroadcastBufferDescriptor#RECORD_SIZE_OFFSET} of the buffer.
      *
      * @param buffer via which transmissions will be exchanged.
+     * @param awaitRecordSize spin wait record size to be set
+     * @throws IllegalStateException if the buffer capacity is not a power of 2 multiple of the recordSize
+     *                               read on {@link BroadcastBufferDescriptor#RECORD_SIZE_OFFSET} of the buffer
+     */
+    public BroadcastReceiver(final AtomicBuffer buffer, boolean awaitRecordSize)
+    {
+        this.buffer = buffer;
+        this.capacity = buffer.capacity() - TRAILER_LENGTH;
+        int recSize = 0;
+        while (recSize <= 0) {
+            recSize = buffer.getIntVolatile(this.capacity + RECORD_SIZE_OFFSET);
+        }
+        this.recordSize = recSize;
+        checkRecordSize(recordSize);
+        checkCapacity(calculateAvailableMessageLength(recordSize), capacity);
+        buffer.verifyAlignment();
+        final int transmissions = capacity / recordSize;
+        this.mask = transmissions - 1;
+        this.latestCounterIndex = this.capacity + LATEST_COUNTER_OFFSET;
+    }
+
+    /**
+     * Construct a new broadcast receiver based on an underlying {@link AtomicBuffer}.
+     * The underlying buffer must a power of 2 multiple of the recordSize
+     * written on {@link BroadcastBufferDescriptor#RECORD_SIZE_OFFSET} of the buffer.
+     *
+     * @param buffer via which transmissions will be exchanged.
      * @throws IllegalStateException if the buffer capacity is not a power of 2 multiple of the recordSize
      *                               read on {@link BroadcastBufferDescriptor#RECORD_SIZE_OFFSET} of the buffer
      */
